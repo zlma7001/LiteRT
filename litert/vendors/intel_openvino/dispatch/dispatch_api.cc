@@ -38,6 +38,15 @@
 namespace litert {
 namespace openvino {
 
+using IntelOpenVinoOptions = ::litert::intel_openvino::IntelOpenVinoOptions;
+namespace {
+
+// Optional intel openvino specific options provided by the application.
+litert::Expected<IntelOpenVinoOptions> intel_openvino_opts = litert::Error(
+    kLiteRtStatusErrorInvalidArgument, "Null Intel OpenVINO options");
+
+}
+
 #if defined(LITERT_WINDOWS_OS)
 LiteRtStatus CreateOpenVinoTensorBuffer(LiteRtGpuDeviceId device_id,
                                         LiteRtGpuQueueId queue_id,
@@ -113,6 +122,27 @@ LiteRtStatus DispatchInitialize(const LiteRtRuntimeContext* runtime_context,
       /*device_tag=*/kLiteRtEnvOptionTagNull,
       /*queue_tag=*/kLiteRtEnvOptionTagNull));
 #endif  // LITERT_WINDOWS_OS
+
+  if (options) {
+    auto cc_options = litert::Options(options, litert::OwnHandle::kNo);
+    auto opaque_options = cc_options.GetOpaqueOptions();
+    if (opaque_options) {
+      auto target_opq_status = litert::FindOpaqueOptions(
+          *opaque_options, LrtGetIntelOpenVinoOptionsIdentifier());
+
+      if (target_opq_status) {
+        auto payload_status = target_opq_status->GetData<const char>();
+        if (payload_status) {
+          LrtIntelOpenVinoOptions raw_options = nullptr;
+          if (LrtCreateIntelOpenVinoOptionsFromToml(
+                  payload_status.Value(), &raw_options) == kLiteRtStatusOk) {
+            intel_openvino_opts =
+                IntelOpenVinoOptions::CreateFromOwnedHandle(raw_options);
+          }
+        }
+      }
+    }
+  }
 
   return kLiteRtStatusOk;
 }
@@ -274,7 +304,7 @@ LiteRtStatus DispatchInvocationContextCreate(
   try {
     auto context = LiteRtDispatchInvocationContextT::Create(
         *device_context, exec_type, exec_bytecode_buffer, function_name,
-        num_inputs, num_outputs);
+        num_inputs, num_outputs, intel_openvino_opts);
     if (!context) {
       LITERT_LOG(LITERT_ERROR,
                  "Failed to create context from context binary: %s",

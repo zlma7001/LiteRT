@@ -115,6 +115,7 @@ litert_bin(
         "//litert/cc/dynamic_runtime:litert_model",
         "//litert/core/util:tensor_type_util",
         "//litert/vendors/c:litert_dispatch_c_api",
+        "//litert/vendors/cc:options_helper",
         "//litert/vendors/intel_openvino:ov_utils",
         "@com_google_absl//absl/cleanup",
         "@intel_openvino//:openvino",
